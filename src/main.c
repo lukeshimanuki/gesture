@@ -4,8 +4,13 @@
 
 #include <linux/input.h>
 
-#define CENTER_RADIUS 800
+#define CENTER_INNER_RADIUS 400
+#define CENTER_OUTER_RADIUS 800
 #define CORNER_RADIUS 500
+
+// always start at 0 to simplify parsing
+int sequence[20] = {0};
+int sequenceSize = 1;
 
 #define REG_CENTER 0
 #define REG_UP 1
@@ -22,27 +27,32 @@
 int getRegion(int dx, int dy)
 {
 	// if it is within inner circle, it is part of the center
-	if (dx * dx + dy * dy < CENTER_RADIUS * CENTER_RADIUS)
+	if (dx * dx + dy * dy < CENTER_INNER_RADIUS * CENTER_INNER_RADIUS)
+	{
+		return REG_CENTER;
+	}
+	if (sequence[sequenceSize - 1] == 0 && dx * dx + dy * dy < CENTER_OUTER_RADIUS * CENTER_OUTER_RADIUS)
 	{
 		return REG_CENTER;
 	}
 	// ignore corners for now
-	if (dy < 0 && abs(dy) >= abs(dx))
+	if (dy < 0 && abs(dy) > abs(dx) + 20)
 	{
 		return REG_UP;
 	}
-	if (dx > 0 && abs(dx) >= abs(dy))
+	if (dx > 0 && abs(dx) > abs(dy) + 20)
 	{
 		return REG_RIGHT;
 	}
-	if (dy > 0 && abs(dy) >= abs(dx))
+	if (dy > 0 && abs(dy) > abs(dx) + 20)
 	{
 		return REG_DOWN;
 	}
-	if (dx < 0 && abs(dx) >= abs(dy))
+	if (dx < 0 && abs(dx) > abs(dy) + 20)
 	{
 		return REG_LEFT;
 	}
+	return -1;
 }
 
 int main()
@@ -59,9 +69,6 @@ int main()
 	int touching = 0;
 	int xi = -1, yi = -1;
 	int x, y;
-	// always start at 0 to simplify parsing
-	int sequence[20] = {0};
-	int sequenceSize = 1;
 
 	while(read(file, &event, sizeof(struct input_event)))
 	{
@@ -76,12 +83,16 @@ int main()
 						{
 							case 0:
 							{
+								xi = -1;
+								yi = -1;
 								int i;
 								for (i = 1; i < sequenceSize; i++)
 								{
 									printf("%i ", sequence[i]);
 								}
 								printf("\n");
+								sequenceSize = 1;
+								sequence[0] = 0; // just in case...
 								break;
 							}
 							case 1:
@@ -124,6 +135,10 @@ int main()
 				break;
 		}
 		int region = getRegion(x - xi, y - yi);
+		if (region == -1)
+		{
+			region = sequence[sequenceSize - 1];
+		}
 		if (sequenceSize > 1 && region == 0)
 		{
 			int i;
