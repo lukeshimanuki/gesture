@@ -2,75 +2,77 @@
 #include <stdlib.h>
 #include <fcntl.h>
 
+#include <string.h>
+
 #include <linux/input.h>
 
-#define CENTER_INNER_RADIUS 400
-#define CENTER_OUTER_RADIUS 800
-#define CORNER_RADIUS 500
+#include "gesture.h"
+#include "action.h"
 
-// always start at 0 to simplify parsing
-int sequence[20] = {0};
-int sequenceSize = 1;
-
-#define REG_CENTER 0
-#define REG_UP 1
-#define REG_RIGHT 2
-#define REG_DOWN 3
-#define REG_LEFT 4
-#define REG_UP_RIGHT 5
-#define REG_DOWN_RIGHT 6
-#define REG_DOWN_LEFT 7
-#define REG_UP_LEFT 8
-// 0 is center
-// 1-4 is up right down left
-// 5-8 is ur, dr, dl, ul
-int getRegion(int dx, int dy)
+void printGesture(FILE* stream, struct Gesture gesture)
 {
-	// if it is within inner circle, it is part of the center
-	if (dx * dx + dy * dy < CENTER_INNER_RADIUS * CENTER_INNER_RADIUS)
+	int i;
+	for (i = 0; i < gesture.size; i++)
 	{
-		return REG_CENTER;
+		fprintf(stream, "%i ", gesture.sequence[i]);
 	}
-	if (sequence[sequenceSize - 1] == 0 && dx * dx + dy * dy < CENTER_OUTER_RADIUS * CENTER_OUTER_RADIUS)
-	{
-		return REG_CENTER;
-	}
-	// ignore corners for now
-	if (dy < 0 && abs(dy) > abs(dx) + 20)
-	{
-		return REG_UP;
-	}
-	if (dx > 0 && abs(dx) > abs(dy) + 20)
-	{
-		return REG_RIGHT;
-	}
-	if (dy > 0 && abs(dy) > abs(dx) + 20)
-	{
-		return REG_DOWN;
-	}
-	if (dx < 0 && abs(dx) > abs(dy) + 20)
-	{
-		return REG_LEFT;
-	}
-	return -1;
+	fprintf(stream, "\n");
 }
 
 int main()
 {
-	int file;
+	FILE* config = stdin;
+
+	// find input file path, should be first string
+	char inputFile[64];
+	fscanf(config, "%s", inputFile);
+
+	// read configured gestures
+	struct Gesture gestures[32];
+	struct Action actions[32];
+	uint8_t numGestures = 0;
+	while (1)
+	{
+		// read sequence
+		char sequence[16];
+		char action[64];
+		int bytesRead = fscanf(config, "%s %s", sequence, action);
+		// if nothing happened or ran out of bytes
+		if (bytesRead == 0 || bytesRead == EOF)
+		{
+			break;
+		}
+		// store sequence
+		gestures[numGestures].size = strlen(sequence);
+		uint8_t i;
+		for (i = 0; i < gestures[numGestures].size; i++)
+		{
+			gestures[numGestures].sequence[i] = sequence[i] - 48; // reduce ascii to int
+		}
+
+		// process action
+		actions[numGestures] = parseActionString(action);
+
+		numGestures++;
+	}
+
+	int input;
 	struct input_event event;
 
-	if((file = open("/dev/input/event6", O_RDONLY)) == -1)
+	// open input stream
+	if((input = open(inputFile, O_RDONLY)) == -1)
 	{
-		perror("opening device");
+		perror("opening input stream");
 		exit(EXIT_FAILURE);
 	}
 
-	int touching = 0;
-	int xi = -1, yi = -1;
-	int x, y;
+	struct Gesture gesture = {1, {0}, -1, -1};
 
-	while(read(file, &event, sizeof(struct input_event)))
+	int touching = 0;
+	uint32_t x, y;
+
+	// process each entry in input stream
+	while(read(input, &event, sizeof(struct input_event)))
 	{
 		switch (event.type)
 		{
@@ -81,28 +83,16 @@ int main()
 						touching = event.value;
 						switch (event.value)
 						{
-							case 0:
+							case 0: // release
 							{
-								xi = -1;
-								yi = -1;
-								int i;
-								for (i = 1; i < sequenceSize; i++)
-								{
-									printf("%i ", sequence[i]);
-								}
-								printf("\n");
-								sequenceSize = 1;
-								sequence[0] = 0; // just in case...
+								// jump to center to end gesture
+								x = gesture.x;
+								y = gesture.y;
 								break;
 							}
-							case 1:
-								xi = -1;
-								yi = -1;
-								sequenceSize = 1;
-								sequence[0] = 0; // just in case...
+							case 1: // press
 								break;
 						}
-//						printf("EV_KEY: BTN_TOUCH: %i\n", event.value);
 						break;
 					default:
 						break;
@@ -112,20 +102,24 @@ int main()
 				switch (event.code)
 				{
 					case ABS_X:
-						x = event.value;
-						if (xi == -1)
+						if (touching)
 						{
-							xi = x;
+							x = event.value;
+							if (gesture.x == -1)
+							{
+								gesture.x = x;
+							}
 						}
-//						printf("EV_ABS: ABS_X: %i\n", event.value);
 						break;
 					case ABS_Y:
-						y = event.value;
-						if (yi == -1)
+						if (touching)
 						{
-							yi = y;
+							y = event.value;
+							if (gesture.y == -1)
+							{
+								gesture.y = y;
+							}
 						}
-//						printf("EV_ABS: ABS_Y: %i\n", event.value);
 						break;
 					default:
 						break;
@@ -134,26 +128,37 @@ int main()
 			default:
 				break;
 		}
-		int region = getRegion(x - xi, y - yi);
+		int8_t region = getRegion(x - gesture.x, y - gesture.y);
+		// if it didn't match any, it is in the middle zone
+		// so treat it as if it is in the same region as before
 		if (region == -1)
 		{
-			region = sequence[sequenceSize - 1];
+			region = gesture.sequence[gesture.size - 1];
 		}
-		if (sequenceSize > 1 && region == 0)
+		if (gesture.size > 1 && region == REGION_CENTER)
 		{
-			int i;
-			for (i = 1; i < sequenceSize; i++)
+			// process gesture
+			printGesture(stderr, gesture);
+			// test if any gesture is equivalent to this one
+			uint8_t i;
+			for (i = 0; i < numGestures; i++)
 			{
-				printf("%i ", sequence[i]);
+				if (compareGestures(gesture, gestures[i]))
+				{ // if equivalent, perform action
+					doAction(actions[i]);
+					printf("gesture %i\n", i);
+					break;
+				}
 			}
-			printf("\n");
-			sequenceSize = 1;
-			sequence[0] = 0;
+
+			// reset gesture
+			gesture.size = 1;
+			gesture.sequence[0] = 0;
 		}
-		if ((xi != -1 && yi != -1) && region != sequence[sequenceSize - 1])
+		if ((gesture.x != -1 && gesture.y != -1) && region != gesture.sequence[gesture.size - 1])
 		{
-			sequence[sequenceSize] = region;
-			sequenceSize++;
+			gesture.sequence[gesture.size] = region;
+			gesture.size++;
 		}
 	}
 
