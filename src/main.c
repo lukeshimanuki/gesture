@@ -29,8 +29,8 @@ int main()
 	fscanf(config, "%s", inputFile);
 
 	// read configured gestures
-	struct Gesture gestures[32];
-	struct Action actions[32];
+	struct Gesture gestures[128];
+	struct Action actions[128];
 	uint8_t numGestures = 0;
 	while (1)
 	{
