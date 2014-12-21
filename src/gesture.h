@@ -5,7 +5,7 @@
 
 #define MAX_SEQUENCE_SIZE 32
 
-enum Region
+enum
 {
 	REGION_CENTER,
 	REGION_UP,

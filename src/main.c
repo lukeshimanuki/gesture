@@ -4,6 +4,7 @@
 
 #include <string.h>
 
+#include <linux/uinput.h>
 #include <linux/input.h>
 
 #include "gesture.h"
@@ -55,6 +56,80 @@ int main()
 
 		numGestures++;
 	}
+
+	// initialize output file
+	int outputFile = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+	ioctl(outputFile, UI_SET_EVBIT, EV_KEY);
+	struct uinput_user_dev uidev;
+	// enable all keys
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_A);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_B);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_C);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_D);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_E);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_F);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_G);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_H);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_I);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_J);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_K);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_L);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_M);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_N);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_O);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_P);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_Q);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_R);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_S);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_T);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_U);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_V);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_W);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_X);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_Y);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_Z);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_0);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_1);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_2);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_3);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_4);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_5);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_6);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_7);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_8);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_9);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_GRAVE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_MINUS);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_EQUAL);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_LEFTBRACE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_RIGHTBRACE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_BACKSLASH);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_SEMICOLON);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_APOSTROPHE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_COMMA);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_DOT);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_SLASH);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_ESC);
+
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_LEFTCTRL);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_SPACE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_BACKSPACE);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_ENTER);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_TAB);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_LEFTALT);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_LEFTSHIFT);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_CAPSLOCK);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_NUMLOCK);
+	ioctl(outputFile, UI_SET_KEYBIT, KEY_SCROLLLOCK);
+	// set device info
+	snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "gesture");
+	uidev.id.bustype = BUS_USB;
+	uidev.id.vendor = 0;
+	uidev.id.product = 0;
+	uidev.id.version = 1;
+	// send info
+	write(outputFile, &uidev, sizeof(uidev));
+	ioctl(outputFile, UI_DEV_CREATE);
 
 	int input;
 	struct input_event event;
@@ -138,15 +213,14 @@ int main()
 		if (gesture.size > 1 && region == REGION_CENTER)
 		{
 			// process gesture
-			printGesture(stderr, gesture);
+//			printGesture(stderr, gesture);
 			// test if any gesture is equivalent to this one
 			uint8_t i;
 			for (i = 0; i < numGestures; i++)
 			{
 				if (compareGestures(gesture, gestures[i]))
 				{ // if equivalent, perform action
-					doAction(actions[i]);
-					printf("gesture %i\n", i);
+					doAction(outputFile, actions[i]);
 					break;
 				}
 			}
@@ -154,6 +228,8 @@ int main()
 			// reset gesture
 			gesture.size = 1;
 			gesture.sequence[0] = 0;
+			gesture.x = -1;
+			gesture.y = -1;
 		}
 		if ((gesture.x != -1 && gesture.y != -1) && region != gesture.sequence[gesture.size - 1])
 		{
@@ -161,6 +237,10 @@ int main()
 			gesture.size++;
 		}
 	}
+
+	// close output stream
+	ioctl(outputFile, UI_DEV_DESTROY);
+	close(outputFile);
 
 	return 0;
 }

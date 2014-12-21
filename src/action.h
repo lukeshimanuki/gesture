@@ -1,13 +1,16 @@
 #ifndef ACTION_H
 #define ACTION_H
 
+#include <stdint.h>
+
 struct Action
 {
-	char string[64]; // TODO: replace with more useful format
+	uint8_t commands[32]; // one of the keycodes in input.h
+	uint8_t numCommands;
 };
 
 struct Action parseActionString(char* actionString);
 
-void doAction(struct Action action);
+void doAction(int outputFile, struct Action action);
 
 #endif
