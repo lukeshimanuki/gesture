@@ -1,27 +1,29 @@
 #include "gesture.h"
 
 #define CENTER_RADIUS 600
-#define CORNER_RADIUS 500
+#define OUTER_CENTER_RADIUS 700
+#define OVERSHOOT 15
 
-// TODO: support polar?
-int8_t getRegion(const int32_t dx, const int32_t dy)
+// 0 <= angle <= 360
+int8_t getRegion(uint16_t radius, uint16_t angle, uint8_t previous)
 {
-	const int overshoot = 20;
 	// if it is within circle, it is part of the center
-	if (dx * dx + dy * dy < CENTER_RADIUS * CENTER_RADIUS)
+	if (radius < CENTER_RADIUS)
 		return REGION_CENTER;
-	// outer circle
-	if (dx * dx + dy * dy < (CENTER_RADIUS + overshoot) * (CENTER_RADIUS + overshoot))
+	// if already in center, has to past outer circle to leave
+	if (previous == REGION_CENTER && radius < OUTER_CENTER_RADIUS)
 		return -1;
-	// ignore corners for now
-	if (dy < 0 && abs(dy) >= abs(dx) + overshoot)
+	// sectors
+	if (angle >= 45 + OVERSHOOT && angle <= 135 - OVERSHOOT)
 		return REGION_UP;
-	if (dx > 0 && abs(dx) >= abs(dy) + overshoot)
-		return REGION_RIGHT;
-	if (dy > 0 && abs(dy) >= abs(dx) + overshoot)
-		return REGION_DOWN;
-	if (dx < 0 && abs(dx) >= abs(dy) + overshoot)
+	if (angle >= 135 + OVERSHOOT && angle <= 225 - OVERSHOOT)
 		return REGION_LEFT;
+	if (angle >= 225 + OVERSHOOT && angle <= 315 - OVERSHOOT)
+		return REGION_DOWN;
+	// for right, check if not in the others
+	if (!(angle >= 45 - OVERSHOOT && angle <= 315 + OVERSHOOT))
+		return REGION_RIGHT;
+	// if not in a sector, then in middle ground
 	return -1;
 }
 

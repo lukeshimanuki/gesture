@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <math.h>
 
 #include <string.h>
 
@@ -9,6 +10,12 @@
 
 #include "gesture.h"
 #include "action.h"
+
+enum Mode
+{
+	LISTEN = 0,
+	PASS = 1
+};
 
 void printGesture(FILE* stream, struct Gesture gesture)
 {
@@ -60,7 +67,7 @@ int main()
 	// initialize output file
 	int outputFile = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 	ioctl(outputFile, UI_SET_EVBIT, EV_KEY);
-	struct uinput_user_dev uidev;
+	ioctl(outputFile, UI_SET_EVBIT, EV_ABS);
 	// enable all keys
 	ioctl(outputFile, UI_SET_KEYBIT, KEY_A);
 	ioctl(outputFile, UI_SET_KEYBIT, KEY_B);
@@ -122,6 +129,7 @@ int main()
 	ioctl(outputFile, UI_SET_KEYBIT, KEY_NUMLOCK);
 	ioctl(outputFile, UI_SET_KEYBIT, KEY_SCROLLLOCK);
 	// set device info
+	struct uinput_user_dev uidev;
 	snprintf(uidev.name, UINPUT_MAX_NAME_SIZE, "gesture");
 	uidev.id.bustype = BUS_USB;
 	uidev.id.vendor = 0;
@@ -141,14 +149,27 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
+	enum Mode mode = LISTEN;
 	struct Gesture gesture = {1, {0}, -1, -1};
-
+	uint8_t numConsecutiveGestures = 0;
 	int touching = 0;
 	uint32_t x, y;
 
 	// process each entry in input stream
 	while(read(input, &event, sizeof(struct input_event)))
 	{
+		// if pass, then just send the event directly
+		if (mode == PASS)
+		{
+			// if released, then begin listening again
+			if (event.type == EV_KEY && event.code == BTN_TOUCH && event.value == 0)
+			{
+				mode = LISTEN;
+			}
+			write(outputFile, &event, sizeof(event));
+			continue;
+		}
+		// otherwise, process it
 		switch (event.type)
 		{
 			case EV_KEY:
@@ -163,9 +184,13 @@ int main()
 								// jump to center to end gesture
 								x = gesture.x;
 								y = gesture.y;
+
+								// if no gesture, then pass next touch
+								if (numConsecutiveGestures == 0 && gesture.size == 1) mode = PASS;
 								break;
 							}
 							case 1: // press
+								numConsecutiveGestures = 0;
 								break;
 						}
 						break;
@@ -203,7 +228,14 @@ int main()
 			default:
 				break;
 		}
-		int8_t region = getRegion(x - gesture.x, y - gesture.y);
+
+		// find region
+		int16_t dx = x - gesture.x;
+		int16_t dy = gesture.y - y;
+		int16_t angle = atan2(dy, dx) * 180 / M_PI;
+		if (angle < 0) angle += 360;
+		int8_t region = getRegion(sqrt(dx * dx + dy * dy), angle, gesture.sequence[gesture.size - 1]);
+
 		// if it didn't match any, it is in the middle zone
 		// so treat it as if it is in the same region as before
 		if (region == -1)
@@ -230,6 +262,8 @@ int main()
 			gesture.sequence[0] = 0;
 			gesture.x = -1;
 			gesture.y = -1;
+
+			numConsecutiveGestures++;
 		}
 		if ((gesture.x != -1 && gesture.y != -1) && region != gesture.sequence[gesture.size - 1])
 		{
@@ -238,7 +272,7 @@ int main()
 		}
 	}
 
-	// close output stream
+	// close output streams
 	ioctl(outputFile, UI_DEV_DESTROY);
 	close(outputFile);
 

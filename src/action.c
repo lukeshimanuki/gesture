@@ -106,12 +106,16 @@ struct Action parseActionString(char* actionString)
 	return action;
 }
 
+// store whether mod keys are held
+uint8_t ctrl = 0;
+uint8_t shift = 0;
+uint8_t alt = 0;
+
 void doAction(int outputFile, struct Action action)
 {
 	int i;
 	for (i = 0; i < action.numCommands; i++)
 	{
-		// print
 		// create event
 		struct input_event event;
 		gettimeofday(&event.time, NULL);
@@ -121,8 +125,34 @@ void doAction(int outputFile, struct Action action)
 		// send event
 		write(outputFile, &event, sizeof(event));
 
-		// release key
-		event.value = 0;
-		write(outputFile, &event, sizeof(event));
+		// if mod key, hold it; otherwise, release
+		switch (action.commands[i])
+		{
+			case KEY_LEFTCTRL: ctrl = 1; break;
+			case KEY_LEFTSHIFT: shift = 1; break;
+			case KEY_LEFTALT: alt = 1; break;
+			default:
+				// release key
+				event.value = 0;
+				write(outputFile, &event, sizeof(event));
+
+				// release mods
+				if (ctrl)
+				{
+					event.code = KEY_LEFTCTRL;
+					write(outputFile, &event, sizeof(event));
+				}
+				if (shift)
+				{
+					event.code = KEY_LEFTSHIFT;
+					write(outputFile, &event, sizeof(event));
+				}
+				if (alt)
+				{
+					event.code = KEY_LEFTALT;
+					write(outputFile, &event, sizeof(event));
+				}
+				break;
+		}
 	}
 }

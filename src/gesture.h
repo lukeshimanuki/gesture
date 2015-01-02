@@ -30,7 +30,7 @@ struct Gesture
 // 0 is center
 // 1-4 is up right down left
 // 5-8 is ur, dr, dl, ul
-int8_t getRegion(const int32_t dx, const int32_t dy);
+int8_t getRegion(uint16_t radius, uint16_t angle, uint8_t previous);
 
 // 0: !=; 1: ==
 int8_t compareGestures(const struct Gesture a, const struct Gesture b);

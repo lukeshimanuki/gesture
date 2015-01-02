@@ -5,7 +5,7 @@
 
 struct Action
 {
-	uint8_t commands[32]; // one of the keycodes in input.h
+	uint16_t commands[32]; // one of the keycodes in input.h
 	uint8_t numCommands;
 };
 
