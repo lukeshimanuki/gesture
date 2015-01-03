@@ -1,0 +1,67 @@
+/* ========================================================================*//**
+@mainpage
+@verbatim
+
+Gesture - a system level gesture listener for linux
+Copyright (C) 2014 Luke Shimanuki
+Version 0.1
+
+INTRODUCTION
+
+  Gesture is a touch input listener for linux systems. It detects configurable
+  gestures on the touch device and sends the associated keypresses. This
+  occurs at the system level using event streams, so it works anywhere, even
+  in a terminal with no display server. As a result, it is relatively
+  portable, as it works on any linux system with a touch device.
+
+  Gesture is designed to enable power users to run a minimal interface on
+  their devices, either with no GUI, or with a mostly keyboard driven
+  GUI. This can be done all without a keyboard. However, it will also work
+  (albeit with little use) on a laptop touch pad.
+
+COPYING
+
+  Gesture is licensed under the BSD License. See COPYING for more details.
+
+COMPILE
+
+  make all
+
+USAGE
+
+    ./gesture
+	<type configuration into stdin>
+
+  Root may be required to access the system level event streams. By default,
+  a press that does not leave the center region indicates that the next
+  press should be ignored and act as a regular mouse action.
+
+  Note: At the moment, usage inside an X server (I haven't tested any other
+  display servers yet) does not work because X steals all input events,
+  preventing Gesture from reading them. However, it will work in a terminal
+  (usually accessed with ctrl-alt-f#).
+
+CONFIGURATION
+
+  Config data is passed to gesture through the standard input. A default
+  configuration file is included (see ./config), and it can be used through
+  redirection ('<'). You can use config files in this manner, or simply type
+  the settings in each time you run it.
+
+  The first line is the path to the event stream to listen to. This usually
+  takes the form of "/dev/input/event#". You can determine which event stream
+  to use by checking each one with cat while touching the input device.
+
+  The remaining lines each consist of two sequences separated by a space, but
+  with no spaces inside each one. The first is the sequence of regions in the
+  gesture. This will always start with 0, because each gesture must start at
+  the center. Each remaining number is the identifier for the region: 1 for up,
+  2 for right, 3 for down, and 4 for left. The second sequence is the list of
+  keypresses to make whenever the specified gesture is performed. Each
+  character may be any letter, number, or symbol that appears when a key is
+  pressed (such as a, b, and c, but not A, B, and C). Additionally, special
+  keys may be used enclosed in <>, such as <space>, <enter>, and <shift>.
+
+@endverbatim
+*//*========================================================================= */
+

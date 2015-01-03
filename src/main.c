@@ -1,3 +1,34 @@
+/* ========================================================================*//**
+ * @file main.c
+ * @author Luke Shimanuki
+ * @date 2 Jan 2015
+ * @brief Implementation of the main function and related functions.
+ *
+ *//*---------------------------------------------------------------------------
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2014 Luke Shimanuki
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ * ========================================================================== */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -11,12 +42,21 @@
 #include "gesture.h"
 #include "action.h"
 
+/***************************************************************************//**
+ * @brief state property determining if mouse events are processed
+ *
+ * This property determines if mouse events should be processed into a gesture,
+ * of if they should be redirected to a linux event stream verbatim.
+ ******************************************************************************/
 enum Mode
 {
-	LISTEN = 0,
-	PASS = 1
+	LISTEN = 0, /**< Mouse events should be processed. */
+	PASS = 1    /**< Mouse events should be redirected. */
 };
 
+/***************************************************************************//**
+ * Prints the sequence of regions in a gesture to the specified stream.
+ ******************************************************************************/
 void printGesture(FILE* stream, struct Gesture gesture)
 {
 	int i;
@@ -27,6 +67,10 @@ void printGesture(FILE* stream, struct Gesture gesture)
 	fprintf(stream, "\n");
 }
 
+/***************************************************************************//**
+ * Reads config settings from the standard input, then begins processing
+ * incoming mouse events.
+ ******************************************************************************/
 int main()
 {
 	FILE* config = stdin;
@@ -278,3 +322,4 @@ int main()
 
 	return 0;
 }
+
